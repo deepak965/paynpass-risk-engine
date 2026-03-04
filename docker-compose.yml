@@ -1,0 +1,39 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: paynpass_risk_db
+    environment:
+      POSTGRES_USER: paynpass
+      POSTGRES_PASSWORD: paynpass_secret
+      POSTGRES_DB: paynpass_risk
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U paynpass -d paynpass_risk"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build: .
+    container_name: paynpass_risk_api
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://paynpass:paynpass_secret@db:5432/paynpass_risk
+      SECRET_KEY: CHANGE_ME_IN_PRODUCTION
+      INTERNAL_API_KEY: CHANGE_ME_INTERNAL
+      DEBUG: "true"
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+volumes:
+  pgdata:
